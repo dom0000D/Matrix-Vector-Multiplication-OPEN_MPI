@@ -1,4 +1,4 @@
-#Matrix Vector Multiplication OPEN_MPI [CPD]
+# Matrix Vector Multiplication OPEN_MPI [CPD]
 
 
 Repository del progetto di Calcolo Parallelo e Distribuito, A.A. 2021/22
