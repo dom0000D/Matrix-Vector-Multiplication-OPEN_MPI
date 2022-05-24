@@ -7,7 +7,7 @@ Repository del progetto di Calcolo Parallelo e Distribuito, A.A. 2021/22
   <img src="https://user-images.githubusercontent.com/56475652/169982582-cdb10ff0-27b9-47d8-9293-ff0965f8f899.png"/>
 </p>
 
-
+Implementazione dell'algoritmo parallelo (np processori) per il calcolo del prodotto tra una Matrice A di dimensione NxM e un vettore b di dimensione M, adottando la I Strategia. L'algoritmo è sviluppato in ambiente MPI_DOCKER. 
 
 
 ### Team
