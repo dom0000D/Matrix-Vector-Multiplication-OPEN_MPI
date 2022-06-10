@@ -21,6 +21,11 @@ L'algoritmo è sviluppato in ambiente MPI_DOCKER.
 */
 
 #include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 //#include "mpi.h"
 #define MAXBUF 1024
 
@@ -29,22 +34,18 @@ int main(int argc, char *argv[])
 {
     int rows, cols;
     int byteRead;
-    char buffer;
+    char buffer[MAXBUF];
     int processorID, numberOfProcessor;
 
-    int text_fd = open("input_file.txt", O_RDONLY);
-    lseek(text_fd, 0, SEEK_SET);
+    FILE *text_fd = fopen("input_file.txt", "r");
+    fseek(text_fd, 0, SEEK_SET);
 
-    if ((byteRead = read(text_fd, &buffer, sizeof(int))) < 0)
-    {
-        printf("READ ERROR\n");
-        exit(-1);
-    }
+    fscanf(text_fd, "%d", &rows);
 
-    rows = atoi(buffer);
+    //rows = atoi(buffer);
 
-    printf("buffer: %c\n", buffer);
-    printf("number: %d\n", rows) :
+    printf("buffer: %s\n", buffer);
+    printf("number: %d\n", rows);
 
-                                   return 0;
+    return 0;
 }
