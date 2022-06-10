@@ -49,18 +49,18 @@ void generateMatrix(int rows, int cols) {
 int *readMatrix(FILE *text, int *rows, int *cols)
 {
     fseek(text, 0, SEEK_SET);
-    fscanf(text, "%d\n", &rows);
-    fscanf(text, "%d\n", &cols);
-    int *A = (int*)malloc(rows * cols * sizeof(int));
+    fscanf(text, "%d\n", rows);
+    fscanf(text, "%d\n", cols);
+    int *A = (int*)malloc((*rows) * (*cols) * sizeof(int));
 
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-                fscanf(text, "%d", &A[rows * i + j]);
+    for (int i = 0; i < *rows; i++) {
+        for (int j = 0; j < *cols; j++) {
+                fscanf(text, "%d", &A[*rows * i + j]);
         }
     }
     return A;
 }
-int *readVector(FILE *text, int *cols){
+int *readVector(FILE *text, int cols){
      // lettura del vettore b
     int *x = (int*) malloc(cols * sizeof(int));
     for (int i = 0; i < cols; i++) {
@@ -73,20 +73,20 @@ int *readVector(FILE *text, int *cols){
 void createGrid(MPI_Comm *grid, int q, int p) {
     int dim = 2, *ndim, reorder = 0, *period;
     ndim = (int*) calloc(dim, sizeof(int));
-    // qxp 
+    // qxp
     ndim[0] = q;
     ndim[1] = p;
     period = (int*) calloc (dim, sizeof(int));
-    period[0] = period [1] = 1; 
+    period[0] = period [1] = 1;
     MPI_Cart_create(MPI_COMM_WORLD,dim,ndim,period,reorder,grid);
     return;
 }
 
 void matXvet_local(MPI_Comm* grid, int processorID, int numberOfProcessor, int nloc, int cols, int* b) {
-    
+
 
 }
-void printMat(int *A, int *x){
+void printMat(int *A, int *x,int rows,int cols){
       printf("\nMatrice\n");
     for(int i = 0; i<rows; i++){
        for(int j = 0; j<cols; j++){
@@ -103,9 +103,10 @@ void printMat(int *A, int *x){
 // ./matxvet <textfilename>
 int main(int argc, char *argv[])
 {
-    srand((unsigned int) 0);    
+    srand((unsigned int) 0);
     int rows, cols;
     int byteRead;
+    int *x,*A;
     char buffer[MAXBUF];
     int processorID, numberOfProcessor;
     MPI_Status status;
@@ -124,20 +125,20 @@ int main(int argc, char *argv[])
 
     // read from textfile
     FILE *text= fopen("inputFile.txt", "r");
-    
+
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &processorID);
     MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcessor);
-    
+
     if(processorID == 0){
-        int *A =readMatrix(text,&rows,&cols);
-        int *x = readVector(text,&cols);
+        A =readMatrix(text,&rows,&cols);
+        x = readVector(text,cols);
         fclose(text);
-        printMat(A,x);
+        printMat(A,x,rows,cols);
         createGrid(&grid,q,p);
 
-        // DISTRIBUZIONE DEI DATI 
+        // DISTRIBUZIONE DEI DATI
 
         // invio dimensioni matrice
         MPI_Bcast(&rows,1,MPI_INT,0,grid);
@@ -147,7 +148,7 @@ int main(int argc, char *argv[])
         // mod(N,q) != 0 -> ridistribuire il resto delle righe
 
         //Calcolo dimensioni locali
-        if ((mod = rows%q) == 0) 
+        if ((mod = rows%q) == 0)
             nloc = rows/q;
         else {
             for (int step = 0; step < mod; step++)
@@ -160,9 +161,9 @@ int main(int argc, char *argv[])
         MPI_Bcast(x,cols,MPI_INT,0,grid);
         } //fine processore master
 
-    // CALCOLO LOCALE 
-    matXvet_local(grid, processorID, numberOfProcessor, nloc, cols/p, xloc, x)
+    // CALCOLO LOCALE
+   // matXvet_local(&grid, processorID, numberOfProcessor, nloc, cols/p, xloc, x);
 
-   // MPI_Finalize();
+    MPI_Finalize();
     return 0;
 }
