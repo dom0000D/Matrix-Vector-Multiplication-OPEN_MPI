@@ -44,7 +44,7 @@ int *readMatrix(FILE *text, int *rows, int *cols)
     return A;
 }
 int *readVector(FILE *text, int cols){
-     // lettura del vettore b
+    // read vector
     int *x = (int*) malloc(cols * sizeof(int));
     for (int i = 0; i < cols; i++) {
     fscanf(text, "%d", &x[i]);
@@ -61,11 +61,56 @@ int* MatrixVectorMultiplication(int nloc, int cols, int* aloc, int* x) {
 	
 	return y;
 }
+void printMatrix(int* a, int rows, int cols)
+{
+    int i, j;
+
+    printf ("\n\nA = \n");
+    for (i = 0; i < rows; i++) {
+            for (j = 0; j < cols; j++) {
+                    printf(" %d", a[i*rows + j]);
+            }
+            printf ("\n");
+    }
+    printf ("\n\n");
+}
+
+
+void printVector(char *prompt, int* y, int size)
+{
+
+    printf ("\n\n%s\n", prompt);
+    for (int i = 0; i < size; i++)
+            printf(" %d ", y[i]);
+    printf ("\n");
+}
+
+
 int main(int argc, char* argv[]) {
+ /* Variable definition */
+
+ /* MPI_Cart_create variables */
  int menum, nproc;
  int ndim[2]; 
  int period[2];
  int dim;
+ int reorder;
+ MPI_Comm grid;
+ 
+ /* Program variables */
+ int rows, cols;
+ int *A, *x;
+ FILE *text;
+ int mod, nloc, *aloc, *xloc;
+ int tmp, tag, start;
+
+ // input check
+ if (argc < 3) {
+ 	printf("Usage: %s <rows> <cols>\n", argv[0]);
+	exit(1);
+ } 
+
+ /* MPI initialization */
  MPI_Init(&argc, &argv);
  MPI_Comm_rank(MPI_COMM_WORLD, &menum);
  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
@@ -74,102 +119,133 @@ int main(int argc, char* argv[]) {
  ndim[1] = 1;
  dim = 2;
  period[0] = period[1] = 1;
- int reorder = 0;
- MPI_Comm grid;
+ reorder = 0;
+
+ //MPI_Comm grid;
  MPI_Cart_create(MPI_COMM_WORLD, 2, ndim, period, reorder, &grid);
  MPI_Comm_rank(grid, &menum);
  
  
  // start
- int rows, cols;
- int *A, *x;
  if (menum == MASTER) {
  	FILE* text = fopen("inputFile.txt", "r+");
+	
+	// generate matrix
         generateMatrix(atoi(argv[1]), atoi(argv[2]));
 	
+	// read matrix
 	A = readMatrix(text, &rows, &cols);
-        x = readVector(text, cols);
+        
+	// read vector
+	x = readVector(text, cols);
         printf("Matrix vector read\n");
- 	fclose(text);
+ 	
+	fclose(text);
         
  }
-
- 
+ // broadcast matrix dims
  MPI_Bcast(&rows, 1, MPI_INT, MASTER, grid);
  MPI_Bcast(&cols, 1, MPI_INT, MASTER, grid);
  
- 
- int mod, nloc, *aloc;
  mod = rows%nproc;
  nloc = rows/nproc;
  if (menum < mod) nloc++; 
- printf("nloc: %d\n", nloc); 
- aloc = (int*)malloc(nloc * cols * sizeof(int));
- int tmp, start;
- int tag;
- if (menum == MASTER) {
- 	aloc = A;
-        tmp = nloc * cols;
- 	start = 0;
- 	for (int i = 1; i < nproc; i++) {
- 		tag = 22+i;
-		start += tmp;
-        	if (i==mod) tmp -= cols;
-		MPI_Send(&A[start], tmp, MPI_INT, i, tag, grid);
-		//MPI_Scatter(&A[start], tmp, MPI_INT, aloc, tmp, MPI_INT, MASTER, grid);
-  }
- } else {
- 	tag = 22+ menum;
-	MPI_Recv(aloc, nloc * cols, MPI_INT, MASTER, tag, grid, NULL);
- }
-
- MPI_Barrier(grid);
- int* xloc = (int*) malloc(cols * sizeof(int));
-
- if (menum == MASTER) {
-	for (int i = 1; i < nproc; i++) {
-		tag = 88+i;
-		MPI_Send(x, cols, MPI_INT, i, tag, grid);
- 	}
-} else {
-	tag = 88+menum;
- 	MPI_Recv(xloc, cols, MPI_INT, MASTER, tag, grid, NULL);
- }
-//for (int i = 0; i < cols; i++) MPI_Bcast(&x[i], 1, MPI_INT, 0, grid);
  
+ aloc = (int*)malloc(nloc * cols * sizeof(int));
 
- printf("menum %d aloc: ", menum);
- for (int j = 0; j < nloc; j++) {
-        for (int k = 0; k < cols; k++) {
-                printf("j=%d k=%d : %d\t",j, k, aloc[j*nloc + k]);
-        }
-        printf("\n");
+ // scatter matrix rows
+ if (mod) { 
+	// matrix rows not divisible by number of processor
+ 	if (menum == MASTER) {
+ 		aloc = A;
+        	tmp = nloc * cols;
+ 		start = 0;
+ 		for (int i = 1; i < nproc; i++) {
+ 			tag = 22+i;
+			start += tmp;
+        		if (i==mod) tmp -= cols;
+			
+			// send matrix rows from MASTER to Pi
+			MPI_Send(&A[start], tmp, MPI_INT, i, tag, grid);
+		
+  		}
+ 	} else {
+ 		tag = 22+ menum;
+		
+		// receive matrix rows from MASTER
+		MPI_Recv(aloc, nloc * cols, MPI_INT, MASTER, tag, grid, NULL);
+ 	}
+ } else {
+	
+	// matrix rows divisible by number of processor
+	// send matrix rows from MASTER to others
+ 	MPI_Scatter(A, nloc * cols, MPI_INT, aloc, nloc * cols, MPI_INT, MASTER, grid);
  }
- printf("menum %d xloc: ", menum);
- for (int j = 0; j < cols; j++) {
-	if (menum != MASTER)
-        printf("j= %d: %d\t", j, xloc[j]);
-	else printf("j= %d: %d\t", j, x[j]); 
-}
-
-
- // calcolo locale
- int *y = MatrixVectorMultiplication(nloc, cols, aloc, (menum == MASTER) ? x : xloc);
+ 
  MPI_Barrier(grid);
+ if (menum != MASTER) x = (int*) malloc(cols * sizeof(int)); 
+ 
+ // broadcast vector x
+ MPI_Bcast(x, cols, MPI_INT, MASTER, grid);
 
- // print
- printf("menum %d output: \n", menum);
- for (int i = 0; i < nproc; i++) {
-	if (menum == i) {
-		for (int j = 0; j < nloc; j++) {
-			printf("j=%d : %d\n", j, y[j]);
+ // parallel phase
+ MPI_Barrier(grid);
+ int *yloc = MatrixVectorMultiplication(nloc, cols, aloc, x); 
+ int *y = (int *) malloc(rows * sizeof(int));
+ int elements;
+ if (mod) {
+ 	if (menum == MASTER) {
+		for (int i = 0; i < nloc; i++) y[i] = yloc[i];
+		start = nloc;
+		for (int i = 1; i < nproc; i++) {
+			// receive number of elements
+			tag = 2000 + i;
+			MPI_Recv(&elements, 1, MPI_INT, i, tag, grid, NULL);
+			
+			// receive output
+			tag = 4500 + i;
+			MPI_Recv(y + start, elements, MPI_INT, i, tag, grid, NULL);
+			start += elements;
 		}
+	} else {
+		// send number of elements
+		tag = 2000 + menum;
+		MPI_Send(&nloc, 1, MPI_INT, MASTER, tag, grid);
+		
+		// send output
+		tag = 4500 + menum;
+		MPI_Send(yloc, nloc, MPI_INT, MASTER, tag, grid);
 	}
- } 
- printf("\n");
+ } else {
+ 	MPI_Gather(yloc, nloc, MPI_INT, y, nloc, MPI_INT, MASTER, grid);
+ }
+ 
+ /*
+ MPI_Barrier(grid);
+ for (int id = 0; id < nproc; id++) {
+	if (menum == id) {
+		for (int i = 0; i < nloc; i++) for (int j = 0; j < cols; j++) printf("menum %d i=%d j=%d: %d\n", menum, i, j, aloc[i*nloc + j]); 
+		for (int i = 0; i < cols; i++) printf("menum %d i=%d: %d\n", menum, i, x[i]);
+	 	for (int i = 0; i < nloc; i++) printf("menum %d i=%d: %d\n",menum, i, yloc[i]);
+	
+	}
+	MPI_Barrier(grid);
+ }
+*/
+
+ if (menum == MASTER) {
+
+	// print matrix
+	printMatrix(A, rows, cols);
+ 	// print vector x
+	printVector("x = ", x, cols);
+	// print results
+ 	printVector("y = ", y, rows);
+ }
 
  MPI_Finalize(); 
  return 0;
 }
+
 
 
