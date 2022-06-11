@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <time.h>
 #include <string.h>
-
+#define MASTER 0
 // read rows
 // read cols
 // read elements from text file
@@ -79,11 +79,11 @@ int main(int argc, char* argv[]) {
  MPI_Cart_create(MPI_COMM_WORLD, 2, ndim, period, reorder, &grid);
  MPI_Comm_rank(grid, &menum);
  
- printf("Mannaggia la madonna\n");
+ 
  // start
  int rows, cols;
  int *A, *x;
- if (menum == 0) {
+ if (menum == MASTER) {
  	FILE* text = fopen("inputFile.txt", "r+");
         generateMatrix(atoi(argv[1]), atoi(argv[2]));
 	
@@ -94,11 +94,11 @@ int main(int argc, char* argv[]) {
         
  }
 
- printf("Dimmi di sì\n");
- MPI_Bcast(&rows, 1, MPI_INT, 0, grid);
- MPI_Bcast(&cols, 1, MPI_INT, 0, grid);
  
- printf("Mannaggia dio\n");
+ MPI_Bcast(&rows, 1, MPI_INT, MASTER, grid);
+ MPI_Bcast(&cols, 1, MPI_INT, MASTER, grid);
+ 
+ 
  int mod, nloc, *aloc;
  mod = rows%nproc;
  nloc = rows/nproc;
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
  aloc = (int*)malloc(nloc * cols * sizeof(int));
  int tmp, start;
  int tag;
- if (menum == 0) {
+ if (menum == MASTER) {
  	aloc = A;
         tmp = nloc * cols;
  	start = 0;
@@ -116,27 +116,27 @@ int main(int argc, char* argv[]) {
 		start += tmp;
         	if (i==mod) tmp -= cols;
 		MPI_Send(&A[start], tmp, MPI_INT, i, tag, grid);
-		//MPI_Scatter(&A[start], tmp, MPI_INT, aloc, tmp, MPI_INT, 0, grid);
+		//MPI_Scatter(&A[start], tmp, MPI_INT, aloc, tmp, MPI_INT, MASTER, grid);
   }
  } else {
  	tag = 22+ menum;
-	MPI_Recv(aloc, nloc * cols, MPI_INT, 0, tag, grid, NULL);
+	MPI_Recv(aloc, nloc * cols, MPI_INT, MASTER, tag, grid, NULL);
  }
 
  MPI_Barrier(grid);
  int* xloc = (int*) malloc(cols * sizeof(int));
 
- if (menum == 0) {
+ if (menum == MASTER) {
 	for (int i = 1; i < nproc; i++) {
 		tag = 88+i;
 		MPI_Send(x, cols, MPI_INT, i, tag, grid);
  	}
 } else {
 	tag = 88+menum;
- 	MPI_Recv(xloc, cols, MPI_INT, 0, tag, grid, NULL);
+ 	MPI_Recv(xloc, cols, MPI_INT, MASTER, tag, grid, NULL);
  }
 //for (int i = 0; i < cols; i++) MPI_Bcast(&x[i], 1, MPI_INT, 0, grid);
- printf("Mannagg jj\n");
+ 
 
  printf("menum %d aloc: ", menum);
  for (int j = 0; j < nloc; j++) {
@@ -147,14 +147,14 @@ int main(int argc, char* argv[]) {
  }
  printf("menum %d xloc: ", menum);
  for (int j = 0; j < cols; j++) {
-	if (menum != 0)
+	if (menum != MASTER)
         printf("j= %d: %d\t", j, xloc[j]);
 	else printf("j= %d: %d\t", j, x[j]); 
 }
 
 
  // calcolo locale
- int *y = MatrixVectorMultiplication(nloc, cols, aloc, (menum == 0) ? x : xloc);
+ int *y = MatrixVectorMultiplication(nloc, cols, aloc, (menum == MASTER) ? x : xloc);
  MPI_Barrier(grid);
 
  // print
@@ -168,43 +168,8 @@ int main(int argc, char* argv[]) {
  } 
  printf("\n");
 
-/* 
-char name[128], number[10];
- sprintf(number, "%d", menum);
- strcpy(name, "file_");
- strcat(name, number);
- strcat(name, ".txt"); 
- FILE *daje[nproc];
- printf("sto scrivendo il file %d\n", menum);
- MPI_Barrier(grid);
-
-for (int i = 0; i < nproc; i++) if (menum == i) daje[i] = fopen(name, "w+"); 
-
- fprintf(daje[menum], "aloc: \n");
- for (int j = 0; j < nloc; j++) {
- 	for (int k = 0; k < cols; k++) {
- 		fprintf(daje[menum], "%d\t", aloc[j*nloc + k]);
- 	}
- 	fprintf(daje[menum], "\n");
- }
- fprintf(daje[menum], "xloc: \n");
- for (int j = 0; j < cols; j++) {
- 	fprintf(daje[menum], "%d\t", xloc[j]);
- }
- fprintf(daje[menum], "output: \n");
- for (int j = 0; j < nloc; j++) {
- 	fprintf(daje[menum], "%d\n", y[j]);
-	
- }
-
- fclose(daje[menum]);	
-*/
  MPI_Finalize(); 
  return 0;
 }
-
-
-
-
 
 
