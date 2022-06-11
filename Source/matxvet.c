@@ -69,15 +69,15 @@ int *readVector(FILE *text, int cols){
 }
 
 
-void createGrid(MPI_Comm *grid, int numberOfProcessor) {
-    int dim = 2, *ndim, reorder = 0, *period;
-    ndim = (int*) calloc(dim, sizeof(int));
+void createGrid(MPI_Comm *grid, int processorID, int numberOfProcessor, int rows, int cols) {
+    int reorder = 0, *period, dim;
     // column vector
-    ndim[0] = numberOfProcessor;
-    ndim[1] = 1;
+    int dims[2] = {numberOfProcessor, 1};
+    MPI_Dims_create(dim, 2, dims);
     period = (int*) calloc (dim, sizeof(int));
     period[0] = period [1] = 1;
-    MPI_Cart_create(MPI_COMM_WORLD,dim,ndim,period,reorder,grid);
+    printf("before MPI_cart_create\n");
+    MPI_Cart_create(MPI_COMM_WORLD,2,dims,period,reorder,grid);
     return;
 }
 
@@ -109,7 +109,6 @@ int main(int argc, char *argv[])
     char buffer[MAXBUF];
     int processorID, numberOfProcessor;
     MPI_Status status;
-    MPI_Comm grid;
     int nloc, q, p, mod;
     int *xloc;
     // Ax = y
@@ -138,23 +137,36 @@ int main(int argc, char *argv[])
 	printf("Vector read\n");
         fclose(text);
         //printMat(A,x,rows,cols);
-
-	//createGrid(&grid,numberOfProcessor);
-	//printf("Grid created!\n");
     }
+    //createGrid(&grid, processorID, numberOfProcessor, rows, cols);
+/*    int reorder = 1; 
+    int dim;
+    int dims[2] = {0,0};
+    int period[2] = {1,1};
+    MPI_Dims_create(dim, 2, dims);
+    MPI_Comm grid; 
+    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, period, reorder, &grid);
+    printf("Grid created!\n");
+    MPI_Comm_rank(grid, &processorID);
+    int my_coords[2];
+    MPI_Cart_coords(grid, processorID, 2, my_coords);
+
+    // Print my location in the 2D torus.
+    printf("[MPI process %d] I am located at (%d, %d).\n", processorID, my_coords[0],my_coords[1]);
+    exit(0);
+
+*/
     // DISTRIBUZIONE DEI DATI
-    
-    MPI_Barrier(MPI_COMM_WORLD);	
+  //  sleep(2);
+  //  MPI_Barrier(grid);	
+    MPI_Barrier(MPI_COMM_WORLD);
     int rc;
     // invio dimensioni matrice
-    /*if ((rc = MPI_Bcast(&rows,1,MPI_INT,0,MPI_COMM_WORLD)) != MPI_SUCCESS) {
-	printf("rc(MPI_Bcast): %d\n", rc);
-	exit(1);
-    }*/
-    MPI_Bcast(&rows, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-        
-    MPI_Bcast(&cols,1,MPI_INT,0,MPI_COMM_WORLD);
+  
+    //MPI_Bcast(&rows, 1, MPI_INT, 0, grid);
+    MPI_Bcast(&rows, 1, MPI_INT, 0, MPI_COMM_WORLD);    
+   // MPI_Bcast(&cols,1,MPI_INT,0,grid);
+    MPI_Bcast(&cols, 1, MPI_INT, 0, MPI_COMM_WORLD);
     printf("Matrix dims broadcasted\n");
     // mod(M,p) != 0 -> OK
     // mod(N,q) != 0 -> ridistribuire il resto delle righe
@@ -168,18 +180,19 @@ int main(int argc, char *argv[])
         }
     xloc = (int*) malloc(nloc*sizeof(int));
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Scatter(A, nloc, MPI_INT, xloc, nloc, MPI_INT, 0, MPI_COMM_WORLD);
+
+   // MPI_Scatter(A, nloc, MPI_INT, xloc, nloc, MPI_INT, 0,grid);
+    MPI_Scatter(A, nloc, MPI_INT, xloc, nloc, MPI_INT, 0,MPI_COMM_WORLD);
     printf("Rows sent from p0 to others\n");
     MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Bcast(x,cols,MPI_INT,0,MPI_COMM_WORLD);
+   // MPI_Bcast(x,cols,MPI_INT,0,grid);
+     MPI_Bcast(x,cols,MPI_INT,0,MPI_COMM_WORLD);
     printf("X vector sent from p0 to others\n");
 
      
 
     // CALCOLO LOCALE
    // matXvet_local(&grid, processorID, numberOfProcessor, nloc, cols/p, xloc, x);
-    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
     return 0;
 }
