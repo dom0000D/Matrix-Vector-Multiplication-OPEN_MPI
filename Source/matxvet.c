@@ -22,6 +22,7 @@ L'algoritmo è sviluppato in ambiente MPI_DOCKER.
 #include <limits.h>
 #include "mpi.h"
 #define MAXBUF 1024
+#define MasterProc 0
 
 // read rows
 // read cols
@@ -122,7 +123,7 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &processorID);
     MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcessor);   
     
-    if (processorID == 0) {
+    if (processorID == MasterProc) {
 
         // read from textfile
         FILE *text = fopen("inputFile.txt", "r");
