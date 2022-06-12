@@ -49,6 +49,8 @@ int *readVector(FILE *text, int cols){
     return x;
 }
 long long int* MatrixVectorMultiplication(int nloc, int cols, int* aloc, int* x) {
+    MPI_Barrier(MPI_COMM_WORLD); //tempi
+    t1 = MPI_Wtime();
     long long int *y = (long long int*) calloc(nloc, sizeof(long long int)) ;
     for (int i = 0; i < nloc; i++)
         for (int j = 0; j < cols; j++)

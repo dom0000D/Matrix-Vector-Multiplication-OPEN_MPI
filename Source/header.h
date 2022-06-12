@@ -9,7 +9,7 @@
 #include <time.h>
 #include <string.h>
 #define MASTER 0
-
+double t1,t2,t;
 void generateMatrix(int rows, int cols);
 int *readMatrix(FILE *text, int *rows, int *cols, int nproc, int *mod);
 int *readVector(FILE *text, int cols);

@@ -28,8 +28,6 @@ int main(int argc, char* argv[]) {
 
  /* MPI initialization */
  MPI_Init(&argc, &argv);
- MPI_Barrier(MPI_COMM_WORLD); //tempi
- t1 = MPI_Wtime();
  MPI_Comm_rank(MPI_COMM_WORLD, &menum);
  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 
