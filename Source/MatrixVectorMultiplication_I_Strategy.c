@@ -20,11 +20,11 @@ void generateMatrix(int rows, int cols) {
 
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            fprintf(text, "%d\n", (int) 1 + rand()%4);
+            fprintf(text, "%d\n", (int) 1 + rand()%UCHAR_MAX);
         }
     }
     for (int i = 0; i < cols; i++) {
-        fprintf(text, "%d\n", (int) 1+ rand()%4);
+        fprintf(text, "%d\n", (int) 1+ rand()%UCHAR_MAX);
     }
     fclose(text);
 }
@@ -56,35 +56,40 @@ int *readVector(FILE *text, int cols){
     }
     return x;
 }
-int* MatrixVectorMultiplication(int nloc, int cols, int* aloc, int* x) {
-    int *y = (int*) calloc(nloc, sizeof(int)) ;
+long long int* MatrixVectorMultiplication(int nloc, int cols, int* aloc, int* x) {
+    long long int *y = (long long int*) calloc(nloc, sizeof(long long int)) ;
     for (int i = 0; i < nloc; i++)
         for (int j = 0; j < cols; j++)
             y[i] += aloc[i*nloc + j] * x[j];
 
     return y;
 }
-void printMatrix(int* a, int rows, int cols)
+void printInput(int* a,int *x ,int rows, int cols)
 {
     int i, j;
 
     printf ("\n\nA = \n");
     for (i = 0; i < rows; i++) {
             for (j = 0; j < cols; j++) {
-                    printf(" %d", *(a +i*cols+j));
+                    printf(" %d\t", *(a +i*cols+j));
             }
             printf ("\n");
     }
     printf ("\n\n");
-}
-void printVector(char *prompt, int* y, int size)
-{
-
-    printf ("\n\n%s\n", prompt);
-    for (int i = 0; i < size; i++)
-            printf(" %d ", y[i]);
+    printf ("\nx=\n");
+    for (int i = 0; i < cols; i++)
+            printf(" %d\t", x[i]);
     printf ("\n");
 }
+void printOutput( long long int* y, int size)
+{
+
+    printf ("\n\ny=\n");
+    for (int i = 0; i < size; i++)
+            printf(" %lld ", y[i]);
+    printf ("\n");
+}
+
 int main(int argc, char* argv[]) {
  /* Variable definition */
  srand((unsigned int)0);
@@ -108,10 +113,18 @@ int main(int argc, char* argv[]) {
     exit(1);
  }
 
+
  /* MPI initialization */
  MPI_Init(&argc, &argv);
  MPI_Comm_rank(MPI_COMM_WORLD, &menum);
  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+
+ if (atoi(argv[1])<nproc)
+ {
+     printf("Number of rows must be greater or equal than number of processors\n");
+     MPI_Finalize();
+     exit(-1);
+ }
 
  ndim[0] = nproc;
  ndim[1] = 1;
@@ -133,7 +146,6 @@ int main(int argc, char* argv[]) {
 
     // read vector
     x = readVector(text, cols);
-        printf("Matrix vector read\n");
 
     fclose(text);
 
@@ -162,20 +174,19 @@ if (menum != MASTER) x = (int*) malloc(cols * sizeof(int));
 
  // parallel phase
  MPI_Barrier(grid);
- int *yloc = MatrixVectorMultiplication(nloc, cols, aloc, x);
- int *y = (int *) malloc(rows * sizeof(int));
+ long long int *yloc = MatrixVectorMultiplication(nloc, cols, aloc, x);
+ long long int *y = (long long int *) malloc(rows * sizeof(long long int));
 
- MPI_Gather(yloc, nloc, MPI_INT, y, nloc, MPI_INT, MASTER, grid);
+ MPI_Gather(yloc, nloc, MPI_LONG_LONG_INT, y, nloc, MPI_LONG_LONG_INT, MASTER, grid);
 
 
  if (menum == MASTER) {
 
-    // print matrix
-    printMatrix(A, (!mod) ? rows : rows-(nproc-mod), cols);
-    // print vector x
-    printVector("x = ", x, cols);
+    // print matrix && print vector
+    printInput(A,x,(!mod) ? rows : rows-(nproc-mod), cols);
+
     // print results
-    printVector("y = ", y, (!mod) ? rows : rows-(nproc-mod));
+    printOutput( y, (!mod) ? rows : rows-(nproc-mod));
  }
 
  MPI_Finalize();
