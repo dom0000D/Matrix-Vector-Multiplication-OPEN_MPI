@@ -1,4 +1,4 @@
-master slots=4
-node01	slots=4
-node02	slots=4
-node03	slots=4
+master slots=64
+node01	slots=64
+node02	slots=64
+node03	slots=64
