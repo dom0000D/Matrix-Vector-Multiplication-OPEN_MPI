@@ -31,13 +31,14 @@ int main(int argc, char* argv[]) {
  MPI_Comm_rank(MPI_COMM_WORLD, &menum);
  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 
+/*
  if (atoi(argv[1])<nproc)
  {
      printf("Number of rows must be greater or equal than number of processors\n");
      MPI_Finalize();
-     exit(-1);
+     exit(1);
  }
-
+*/
  ndim[0] = nproc;
  ndim[1] = 1;
  dim = 2;
@@ -76,7 +77,7 @@ int main(int argc, char* argv[]) {
  // send matrix rows from MASTER to others
  MPI_Scatter(A, nloc * cols, MPI_INT, aloc, nloc * cols, MPI_INT, MASTER, grid);
 
- MPI_Barrier(grid);
+ //MPI_Barrier(grid);
 
 
 if (menum != MASTER) x = (int*) malloc(cols * sizeof(int));
@@ -85,7 +86,7 @@ if (menum != MASTER) x = (int*) malloc(cols * sizeof(int));
  MPI_Bcast(x, cols, MPI_INT, MASTER, grid);
 
  // parallel phase
- MPI_Barrier(grid);
+ //MPI_Barrier(grid);
  long long int *yloc = MatrixVectorMultiplication(nloc, cols, aloc, x);
  long long int *y = (long long int *) malloc(rows * sizeof(long long int));
 
@@ -100,8 +101,6 @@ if (menum != MASTER) x = (int*) malloc(cols * sizeof(int));
     // print results
     printOutput( y, (!mod) ? rows : rows-(nproc-mod));
  }
- MPI_Barrier(grid);
- t2 = MPI_Wtime();
  t = t2-t1; //tempo di ogni processore
  MPI_Allreduce(&t, &max,1, MPI_DOUBLE, MPI_MAX, grid); //tutti i processori hanno il massimo tra tutti i tempi
  printf("Il tempo massimo d'esecuzione è %lf\n",max);
